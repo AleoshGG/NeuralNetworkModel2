@@ -5,47 +5,42 @@ from tensorflow.keras import layers, models
 import tensorflow as tf
 
 class NeuronalNetwork:
-    def __init__(self, input_dim=2, hidden_units=4, activation_entity=None):
+    def __init__(self, input_dim=24):
         self.input_dim = input_dim
-        self.hidden_units = hidden_units
-        # Si no se pasa entidad, usamos sigmoid por defecto para XOR
-        self.activation = activation_entity.get_activation() if activation_entity else 'sigmoid'
         self.model = self._build_model()
         self.results = DataResults()
 
     def _build_model(self):
-        """Define la arquitectura: 2 -> 4 (Hidden) -> 1 (Output)"""
+        """
+        Define la arquitectura:
+        24 -> 16 (ReLU) -> 8 (ReLU) -> 3 (Softmax)
+        """
         model = models.Sequential([
-            # Capa oculta: Necesaria para resolver la no-linealidad del XOR
-            layers.Dense(self.hidden_units,
-                         input_dim=self.input_dim,
-                         activation= self.activation,
-                         name="hidden_layer"),
-            # Capa de salida: 1 neurona para clasificar 0 o 1
-            layers.Dense(1, activation='sigmoid', name="output_layer")
+            layers.Dense(16, input_dim=self.input_dim, activation='relu', name="hidden_layer_1"),
+            layers.Dense(8, activation='relu', name="hidden_layer_2"),
+            layers.Dense(3, activation='softmax', name="output_layer")
         ])
 
-        optimizador_rapido = tf.keras.optimizers.Adam(learning_rate=0.1)
+        optimizador_rapido = tf.keras.optimizers.Adam(learning_rate=0.01)
 
         model.compile(optimizer=optimizador_rapido,
-                      loss='binary_crossentropy',
+                      loss='categorical_crossentropy',
                       metrics=['accuracy'])
         return model
 
-    def train(self, X, y, epochs=500, verbose=0):
-        print(f"Iniciando entrenamiento por {epochs} épocas...")
-
+    def train(self, X_train, y_train, X_val=None, y_val=None, epochs=50, verbose=0):
         # Instanciamos nuestro capturador de pesos
         weight_service = WeightCaptureService(self.results)
+        
+        validation_data = (X_val, y_val) if X_val is not None and y_val is not None else None
 
         # El entrenamiento
         history = self.model.fit(
-            X, y,
+            X_train, y_train,
+            validation_data=validation_data,
             epochs=epochs,
             verbose=verbose,
-            callbacks=[weight_service],
-            # Usamos una fracción de los datos para validación y ver sobreentrenamiento
-            #validation_split=0.1
+            callbacks=[weight_service]
         )
 
         # Guardamos el historial de pérdida y precisión
